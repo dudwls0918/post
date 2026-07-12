@@ -26,7 +26,3 @@ Thumbs.db
 # Environment files
 .env
 *.env
-
-# Local Spring config
-be/src/main/resources/application-local.yml
-be/src/main/resources/application-local.properties
