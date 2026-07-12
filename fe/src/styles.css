@@ -18,3 +18,47 @@ body {
   place-content: center;
   text-align: center;
 }
+
+.login-card {
+  width: min(100vw - 40px, 400px);
+  display: grid;
+  gap: 14px;
+  padding: 36px;
+  background: white;
+  border: 1px solid #dbeee0;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgb(45 112 65 / 12%);
+}
+
+.mark {
+  font-size: 32px;
+}
+
+.login-card h1,
+.login-card p {
+  margin: 0;
+}
+
+.login-card label {
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.login-card input {
+  padding: 12px;
+  border: 1px solid #cfe1d3;
+  border-radius: 8px;
+}
+
+.login-card button {
+  padding: 13px;
+  color: white;
+  background: #3f8a58;
+  border: 0;
+  border-radius: 9px;
+  font-weight: bold;
+  cursor: pointer;
+}
