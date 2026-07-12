@@ -14,7 +14,100 @@ body {
 
 .app {
   min-height: 100vh;
+  padding: 60px 20px;
+}
+
+.profile {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.profile-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 28px;
+  background: linear-gradient(120deg, #e1f4e5, white);
+  border: 1px solid #dcecdf;
+  border-radius: 18px;
+}
+
+.avatar {
+  width: 70px;
+  height: 70px;
   display: grid;
-  place-content: center;
+  place-items: center;
+  color: #27633d;
+  background: #d8f1df;
+  border-radius: 50%;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+.profile h1,
+.profile p {
+  margin: 6px 0;
+}
+
+.eyebrow {
+  color: #4d9465;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.email {
+  color: #718076;
+  font-size: 14px;
+}
+
+.stat {
+  display: grid;
+  margin-left: auto;
   text-align: center;
+}
+
+.stat strong {
+  color: #2f804a;
+  font-size: 30px;
+}
+
+.stat span {
+  color: #718076;
+  font-size: 12px;
+}
+
+.my-posts {
+  display: grid;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.my-posts h2 {
+  margin: 0 0 4px;
+}
+
+.my-posts article {
+  padding: 20px;
+  background: white;
+  border: 1px solid #e3eee5;
+  border-radius: 12px;
+}
+
+.my-posts span {
+  padding: 4px 8px;
+  color: #347d4b;
+  background: #e3f5e7;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.my-posts h3 {
+  margin: 13px 0 7px;
+}
+
+.my-posts p {
+  color: #617066;
+}
 }
