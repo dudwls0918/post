@@ -2,9 +2,12 @@ package com.example.be.domain.user;
 
 
 import com.example.be.domain.user.dto.UserCreateRequest;
+import com.example.be.domain.user.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,5 +31,22 @@ public class UserService {
 
         return savedUser.getId();
 
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsers(){
+        return userRepository.findAll().
+                stream().
+                map(UserResponse::new).
+                toList();
+
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUser(Long id){
+        User user=userRepository.findById(id)
+                .orElseThrow(()->new IllegalArgumentException("회원이 존재하지 않습니다."));
+
+        return new UserResponse(user);
     }
 }
