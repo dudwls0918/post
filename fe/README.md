@@ -16,16 +16,14 @@ cp .env.example .env
 
 |기능|메서드|경로|
 |---|---|---|
-|로그인|POST|`/auth/login`|
-|목록 조회|GET|`/posts`|
-|글 작성|POST|`/posts`|
-|글 수정|PATCH|`/posts/:id`|
-|글 삭제|DELETE|`/posts/:id`|
-|공감|POST|`/posts/:id/like`|
+|목록 조회|GET|`/api/posts`|
+|글 작성|POST|`/api/posts`|
+|글 수정|PUT|`/api/posts/:id`|
+|글 삭제|DELETE|`/api/posts/:id`|
 
 터미널 API 호출 예시:
 
 ```bash
-curl -X POST http://localhost:8080/auth/login -H 'Content-Type: application/json' -d '{"email":"green@example.com","password":"1234"}'
-curl -X POST http://localhost:8080/posts -H 'Content-Type: application/json' -d '{"title":"첫 글","content":"안녕하세요","category":"자유","authorId":1}'
+curl http://localhost:8080/api/posts
+curl -X POST http://localhost:8080/api/posts -H 'Content-Type: application/json' -d '{"title":"첫 글","content":"안녕하세요","author":"김그린"}'
 ```
