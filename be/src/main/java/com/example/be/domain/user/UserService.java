@@ -3,6 +3,7 @@ package com.example.be.domain.user;
 
 import com.example.be.domain.user.dto.UserCreateRequest;
 import com.example.be.domain.user.dto.UserResponse;
+import com.example.be.domain.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,5 +49,21 @@ public class UserService {
                 .orElseThrow(()->new IllegalArgumentException("회원이 존재하지 않습니다."));
 
         return new UserResponse(user);
+    }
+
+    public Long updateUser(Long id, UserUpdateRequest request){
+        User user=userRepository.findById(id)
+                .orElseThrow(()->new IllegalArgumentException("회원이 존재하지 않습니다."));
+
+        user.updateNickname(request.getNickname());
+
+        return user.getId();
+    }
+
+    public void deleteUser(Long id){
+        User user= userRepository.findById(id)
+                .orElseThrow(()->new IllegalArgumentException("회원이 존재하지 않습니다."));
+
+        userRepository.delete(user);
     }
 }
