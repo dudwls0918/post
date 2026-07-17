@@ -3,6 +3,8 @@ package com.example.be.domain.post;
 import com.example.be.domain.post.dto.PostCreateRequest;
 import com.example.be.domain.post.dto.PostResponse;
 import com.example.be.domain.post.dto.PostUpdateRequest;
+import com.example.be.domain.user.User;
+import com.example.be.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +17,16 @@ import java.util.List;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final UserRepository userRepository;
 
     public Long createPost(PostCreateRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+
         Post post = new Post(
                 request.getTitle(),
                 request.getContent(),
-                request.getAuthor()
+                user
         );
 
         Post savedPost = postRepository.save(post);

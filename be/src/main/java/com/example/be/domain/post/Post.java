@@ -1,5 +1,6 @@
 package com.example.be.domain.post;
 
+import com.example.be.domain.user.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -22,17 +23,18 @@ public class Post {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(nullable = false)
-    private String author;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
-    public Post(String title, String content, String author) {
+    public Post(String title, String content, User user) {
         this.title = title;
         this.content = content;
-        this.author = author;
+        this.user = user;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
