@@ -13,5 +13,5 @@ public class CommentCreateRequest {
     private String content;
 
     @NotNull
-    private String userId;
+    private Long userId;
 }
