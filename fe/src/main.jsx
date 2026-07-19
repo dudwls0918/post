@@ -36,6 +36,16 @@ const api = {
     method: 'POST',
     body: JSON.stringify({ email: data.email, password: data.password, nickname: data.nickname }),
   }),
+  user: (id) => request('/api/users/' + id),
+  updateUser: (id, nickname) => request('/api/users/' + id, {
+    method: 'PUT',
+    body: JSON.stringify({ nickname }),
+  }),
+  profileVisits: (id) => request(`/api/users/${id}/visits`),
+  recordProfileVisit: (id, visitorId) => request(`/api/users/${id}/visits`, {
+    method: 'POST',
+    body: JSON.stringify({ visitorId }),
+  }),
   posts: () => request('/api/posts').then((posts) => posts.map(normalizePost)),
   create: (data) => request('/api/posts', {
     method: 'POST',
@@ -86,6 +96,7 @@ function Card({ post, open }) { return <article className="card" onClick={open}>
 
 function App() {
   const [user, setUser] = useState(null), [posts, setPosts] = useState([]), [view, setView] = useState('home');
+  const [profileUserId, setProfileUserId] = useState(null);
   const [authView, setAuthView] = useState('login'), [registeredId, setRegisteredId] = useState(null);
   const [selected, setSelected] = useState(null), [editing, setEditing] = useState(null), [query, setQuery] = useState(''), [category, setCategory] = useState('전체'), [message, setMessage] = useState('');
   const notice = (text) => { setMessage(text); setTimeout(() => setMessage(''), 2500); };
@@ -100,12 +111,69 @@ function App() {
   const likePost = async () => {};
   if (!user && authView === 'signup') return <Signup onCancel={() => setAuthView('login')} onSuccess={userId => { setRegisteredId(userId); setAuthView('login'); }} />;
   if (!user) return <Login key={registeredId || 'login'} onLogin={login} onSignup={() => setAuthView('signup')} error={message} initialId={registeredId} />;
-  return <main><header><button className="logo" onClick={() => setView('home')}>🌿 FairPlay</button><nav><button onClick={() => setView('home')}>게시판</button></nav></header><section className="hero"><div className="hero-copy"><p className="eyebrow">GROW TOGETHER</p><h1>프로젝트 결과를 공유하고<br />자유롭게 소통해 보세요</h1><p>작은 아이디어가 더 좋은 내일을 만듭니다.</p></div><div className="hero-panel"><span>오늘의 보드</span><strong>{boardPosts.length}</strong><p>공유된 프로젝트 이야기</p></div></section>
+  return <main><header><button className="logo" onClick={() => setView('home')}>🌿 FairPlay</button><nav><button onClick={() => setView('home')}>게시판</button><button onClick={() => { setProfileUserId(user.id); setView('profile'); }}>내 프로필</button></nav></header>{view !== 'profile' && <section className="hero"><div className="hero-copy"><p className="eyebrow">GROW TOGETHER</p><h1>프로젝트 결과를 공유하고<br />자유롭게 소통해 보세요</h1><p>작은 아이디어가 더 좋은 내일을 만듭니다.</p></div><div className="hero-panel"><span>오늘의 보드</span><strong>{boardPosts.length}</strong><p>공유된 프로젝트 이야기</p></div></section>}
     {view === 'home' && <section className="content"><div className="toolbar"><div><p className="section-label">COMMUNITY</p></div><div className="toolbar-actions"><button className="primary" onClick={() => write()}>+ 글쓰기</button></div></div><div className="filters"><input placeholder="제목 또는 내용 검색" value={query} onChange={e => setQuery(e.target.value)} />{categories.map(c => <button key={c} className={'chip ' + (category === c ? 'active' : '')} onClick={() => setCategory(c)}>{c}</button>)}</div>{visible.length ? <div className="grid">{visible.map(p => <Card key={p.id} post={p} open={() => { setSelected(p); setView('detail'); }} />)}</div> : <div className="empty">검색 결과가 없습니다.<br />첫 번째 이야기를 남겨 보세요.</div>}</section>}
-    {view === 'detail' && selected && <section className="content detail"><button className="back" onClick={() => setView('home')}>← 목록으로</button><article><div className="row"><span className="badge">{selected.category}</span><span><button onClick={() => write(selected)}>수정</button><button className="danger" onClick={() => deletePost(selected)}>삭제</button></span></div>{selected.imageUrl && <img className="detail-image" src={selected.imageUrl} alt="" />}<h2>{selected.title}</h2><p className="muted">{selected.author} · {date(selected.createdAt)}</p><p className="body">{selected.content}</p><button className="like" onClick={() => likePost(selected)}>♡ 공감 {selected.likes}</button></article><Comments postId={selected.id} user={user} notice={notice} /></section>}
+    {view === 'detail' && selected && <section className="content detail"><button className="back" onClick={() => setView('home')}>← 목록으로</button><article><div className="row"><span className="badge">{selected.category}</span><span><button onClick={() => write(selected)}>수정</button><button className="danger" onClick={() => deletePost(selected)}>삭제</button></span></div>{selected.imageUrl && <img className="detail-image" src={selected.imageUrl} alt="" />}<h2>{selected.title}</h2><p className="muted"><button className="author-link" onClick={() => { setProfileUserId(selected.userId); setView('profile'); }}>{selected.author}</button> · {date(selected.createdAt)}</p><p className="body">{selected.content}</p><button className="like" onClick={() => likePost(selected)}>♡ 공감 {selected.likes}</button></article><Comments postId={selected.id} user={user} notice={notice} /></section>}
     {view === 'editor' && <Editor post={editing} cancel={() => setView(editing ? 'detail' : 'home')} save={savePost} />}
+    {view === 'profile' && <Profile key={profileUserId || user.id} user={user} profileId={profileUserId || user.id} posts={posts} notice={notice} onUserChange={nextUser => setUser({ ...user, ...nextUser })} openPost={post => { setSelected(post); setView('detail'); }} />}
     {message && <div className="toast">{message}</div>}
   </main>;
+}
+function Profile({ user, profileId, posts, notice, onUserChange, openPost }) {
+  const isOwner = Number(profileId) === Number(user.id);
+  const storageKey = `profile-settings-${profileId}`;
+  const initialSettings = { bio: '', interests: '', location: '', link: '', theme: 'forest', ...JSON.parse(localStorage.getItem(storageKey) || '{}') };
+  const [profile, setProfile] = useState({ id: profileId, email: '', nickname: isOwner ? String(user.name) : '', createdAt: '', updatedAt: '' });
+  const [form, setForm] = useState({ nickname: String(user.name), ...initialSettings });
+  const [settings, setSettings] = useState(initialSettings);
+  const [avatar, setAvatar] = useState(() => localStorage.getItem(`profile-avatar-${profileId}`) || '');
+  const [myComments, setMyComments] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [visitors, setVisitors] = useState(0);
+  const themes = { forest: 'linear-gradient(135deg, #153f44, #337879 62%, #91aa61)', ocean: 'linear-gradient(135deg, #12324a, #28769a 62%, #72b5b1)', sunset: 'linear-gradient(135deg, #593c55, #b05f65 62%, #e7a866)', lavender: 'linear-gradient(135deg, #403b66, #7169a7 62%, #b49ed8)' };
+  const myPosts = posts.filter(post => Number(post.userId) === Number(profileId));
+  const receivedLikes = myPosts.reduce((total, post) => total + Number(post.likes || 0), 0);
+
+  useEffect(() => {
+    api.user(profileId).then(data => { setProfile(data); setForm(current => ({ ...current, nickname: data.nickname })); if (isOwner) onUserChange({ name: data.nickname }); }).catch(e => notice(e.message));
+    const visitRequest = isOwner ? Promise.resolve() : api.recordProfileVisit(profileId, user.id);
+    visitRequest.then(() => api.profileVisits(profileId)).then(result => setVisitors(Number(result?.count ?? result ?? 0))).catch(() => setVisitors(0));
+    const realPosts = posts.filter(post => !String(post.id).startsWith('sample-'));
+    Promise.all(realPosts.map(post => api.comments(post.id).catch(() => []))).then(groups => setMyComments(groups.flat().filter(comment => Number(comment.userId) === Number(profileId))));
+  }, [profileId, posts.length]);
+
+  const change = key => event => setForm({ ...form, [key]: event.target.value });
+  const saveProfile = async event => {
+    event.preventDefault();
+    if (!isOwner) { notice('다른 사용자의 프로필은 수정할 수 없습니다.'); return; }
+    const nickname = form.nickname.trim();
+    if (!nickname || saving) return;
+    try {
+      setSaving(true);
+      await api.updateUser(profileId, nickname);
+      const nextSettings = { bio: form.bio.trim(), interests: form.interests.trim(), location: form.location.trim(), link: form.link.trim(), theme: form.theme };
+      localStorage.setItem(storageKey, JSON.stringify(nextSettings));
+      setSettings(nextSettings);
+      setProfile({ ...profile, nickname });
+      onUserChange({ name: nickname });
+      setEditing(false);
+      notice('프로필을 저장했어요.');
+    } catch (e) { notice(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const changeAvatar = event => {
+    if (!isOwner) { notice('다른 사용자의 프로필 사진은 변경할 수 없습니다.'); return; }
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { notice('이미지 파일만 선택해 주세요.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { const value = String(reader.result); setAvatar(value); localStorage.setItem(`profile-avatar-${profileId}`, value); notice('프로필 사진을 변경했어요.'); };
+    reader.readAsDataURL(file);
+  };
+
+  return <section className="profile-page"><div className="profile-cover" style={{ background: themes[settings.theme] }}><div className="profile-avatar">{avatar ? <img src={avatar} alt="프로필" /> : <span>{String(profile.nickname || user.name || '?').slice(0, 1)}</span>}<label className="avatar-button">사진 변경<input type="file" accept="image/*" onChange={changeAvatar} /></label></div><div className="profile-identity"><p className="eyebrow">MY PROFILE</p><h1>{profile.nickname || user.name}</h1><p>{settings.bio || profile.email || '나만의 소개를 작성해 보세요.'}</p><div className="profile-tags">{settings.location && <span>📍 {settings.location}</span>}{settings.interests && <span>✨ {settings.interests}</span>}{settings.link && <a href={settings.link} target="_blank" rel="noreferrer">🔗 링크</a>}</div><button className="profile-edit-button" onClick={() => setEditing(true)}>회원정보 · 프로필 꾸미기</button></div></div>{editing && <form className="profile-settings" onSubmit={saveProfile}><div className="profile-settings-head"><div><p className="eyebrow">EDIT PROFILE</p><h2>회원정보와 프로필 꾸미기</h2></div><button type="button" onClick={() => setEditing(false)}>✕ 닫기</button></div><div className="account-details"><div><span>회원 ID</span><strong>{profile.id}</strong></div><div><span>이메일</span><strong>{profile.email || '-'}</strong></div><div><span>가입일</span><strong>{profile.createdAt ? date(profile.createdAt) : '-'}</strong></div><div><span>최근 수정</span><strong>{profile.updatedAt ? date(profile.updatedAt) : '-'}</strong></div></div><div className="profile-fields"><label>닉네임<input value={form.nickname} onChange={change('nickname')} required maxLength="50" /></label><label>한 줄 소개<input value={form.bio} onChange={change('bio')} maxLength="80" placeholder="나를 소개하는 문장을 적어 주세요" /></label><label>관심 분야<input value={form.interests} onChange={change('interests')} maxLength="60" placeholder="예: React, 디자인, 알고리즘" /></label><label>위치<input value={form.location} onChange={change('location')} maxLength="40" placeholder="예: 부산" /></label><label className="wide">개인 링크<input type="url" value={form.link} onChange={change('link')} placeholder="https://..." /></label><fieldset className="wide"><legend>프로필 테마</legend><div className="theme-options">{Object.entries(themes).map(([key, background]) => <label key={key} className={form.theme === key ? 'selected' : ''} style={{ background }}><input type="radio" name="theme" value={key} checked={form.theme === key} onChange={change('theme')} /><span>{key}</span></label>)}</div></fieldset></div><div className="profile-settings-actions"><button type="button" onClick={() => setEditing(false)}>취소</button><button className="primary" disabled={saving}>{saving ? '저장 중...' : '변경사항 저장'}</button></div></form>}<div className="profile-stats"><div><strong>{myPosts.length}</strong><span>내가 쓴 게시물</span></div><div><strong>{receivedLikes}</strong><span>받은 좋아요</span></div><div><strong>{myComments.length}</strong><span>내가 쓴 댓글</span></div><div><strong>{visitors}</strong><span>프로필 방문</span></div></div><div className="profile-grid"><section><h2>내가 쓴 게시물</h2>{myPosts.length ? myPosts.map(post => <button className="profile-activity" key={post.id} onClick={() => openPost(post)}><strong>{post.title}</strong><span>{date(post.createdAt)}</span><p>{post.content}</p></button>) : <p className="profile-empty">아직 작성한 게시물이 없습니다.</p>}</section><section><h2>내가 쓴 댓글</h2>{myComments.length ? myComments.map(comment => <div className="profile-activity" key={comment.id}><strong>{comment.nickname || profile.nickname}</strong><span>{date(comment.createdAt)}</span><p>{comment.content}</p></div>) : <p className="profile-empty">아직 작성한 댓글이 없습니다.</p>}</section></div></section>;
 }
 function Comments({ postId, user, notice }) {
   const [comments, setComments] = useState([]);
@@ -176,7 +244,7 @@ class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
   render() {
-    if (this.state.error) return <main className="login"><section className="login-card"><div className="mark">⚠️</div><h1>화면을 불러오지 못했어요.</h1><p className="error">{this.state.error.message}</p><p className="hint">이 화면을 캡처해서 전달해 주세요.</p></section></main>;
+    if (this.state.error) return <main className="login"><section className="login-card"><div className="mark">⚠️</div><h1>화면을 불러오지 못했어요.</h1><p className="error">{this.state.error.message}</p></section></main>;
     return this.props.children;
   }
 }
