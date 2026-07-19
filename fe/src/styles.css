@@ -496,15 +496,6 @@ textarea {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.signup-success {
-  margin: 20px 0 0;
-  padding: 12px;
-  color: #235f65;
-  background: #edf6f3;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.6;
-}
 .profile-page {
   width: min(1120px, 100%);
   margin: 0 auto;
