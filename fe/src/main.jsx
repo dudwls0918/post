@@ -39,6 +39,16 @@ const api = {
     body: JSON.stringify({ title: data.title, content: data.content }),
   }),
   remove: (id) => request('/api/posts/' + id, { method: 'DELETE' }),
+  comments: (postId) => request(`/api/posts/${postId}/comments`),
+  createComment: (postId, data) => request(`/api/posts/${postId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content: data.content, userId: data.userId }),
+  }),
+  updateComment: (commentId, content) => request(`/api/comments/${commentId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  }),
+  removeComment: (commentId) => request(`/api/comments/${commentId}`, { method: 'DELETE' }),
 };
 const categories = ['전체', '공지', '질문', '자유'];
 const date = (value) => new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -57,7 +67,7 @@ function App() {
   useEffect(() => { if (user) load(); }, [user]);
   const boardPosts = posts.length ? posts : samplePosts;
   const visible = useMemo(() => boardPosts.filter(p => (category === '전체' || p.category === category) && (p.title + p.content).toLowerCase().includes(query.toLowerCase())), [boardPosts, query, category]);
-  const login = async (id, password) => { try { const userId = Number(id); if (!Number.isInteger(userId) || userId <= 0) throw new Error('현재는 백엔드 회원의 숫자 ID로 로그인해 주세요.'); const result = await api.login(userId, password); const loginUser = result.user || result; setUser({ id: userId, name: loginUser.name || loginUser.username || id }); } catch (e) { notice(e.message); } };
+  const login = async (id, password) => { try { const userId = Number(id); if (!Number.isInteger(userId) || userId <= 0) throw new Error('아이디: 1 / 비밀번호: 1234'); const result = await api.login(userId, password); const loginUser = result.user || result; setUser({ id: userId, name: loginUser.name || loginUser.username || id }); } catch (e) { notice(e.message); } };
   const write = (post = null) => { setEditing(post); setView('editor'); };
   const savePost = async (form) => { try { editing ? await api.update(editing.id, form) : await api.create({ ...form, userId: user.id }); await load(); setView('home'); notice(editing ? '게시글을 수정했어요.' : '새 게시글을 등록했어요.'); } catch (e) { notice(e.message); } };
   const deletePost = async (post) => { if (String(post.id).startsWith('sample-')) { setView('home'); return; } if (!confirm('이 게시글을 삭제할까요?')) return; try { await api.remove(post.id); await load(); setView('home'); notice('게시글을 삭제했어요.'); } catch(e) { notice(e.message); } };
@@ -65,10 +75,65 @@ function App() {
   if (!user) return <Login onLogin={login} error={message} />;
   return <main><header><button className="logo" onClick={() => setView('home')}>🌿 FairPlay</button><nav><button onClick={() => setView('home')}>게시판</button></nav></header><section className="hero"><div className="hero-copy"><p className="eyebrow">GROW TOGETHER</p><h1>프로젝트 결과를 공유하고<br />자유롭게 소통해 보세요</h1><p>작은 아이디어가 더 좋은 내일을 만듭니다.</p></div><div className="hero-panel"><span>오늘의 보드</span><strong>{boardPosts.length}</strong><p>공유된 프로젝트 이야기</p></div></section>
     {view === 'home' && <section className="content"><div className="toolbar"><div><p className="section-label">COMMUNITY</p></div><div className="toolbar-actions"><button className="primary" onClick={() => write()}>+ 글쓰기</button></div></div><div className="filters"><input placeholder="제목 또는 내용 검색" value={query} onChange={e => setQuery(e.target.value)} />{categories.map(c => <button key={c} className={'chip ' + (category === c ? 'active' : '')} onClick={() => setCategory(c)}>{c}</button>)}</div>{visible.length ? <div className="grid">{visible.map(p => <Card key={p.id} post={p} open={() => { setSelected(p); setView('detail'); }} />)}</div> : <div className="empty">검색 결과가 없습니다.<br />첫 번째 이야기를 남겨 보세요.</div>}</section>}
-    {view === 'detail' && selected && <section className="content detail"><button className="back" onClick={() => setView('home')}>← 목록으로</button><article><div className="row"><span className="badge">{selected.category}</span><span><button onClick={() => write(selected)}>수정</button><button className="danger" onClick={() => deletePost(selected)}>삭제</button></span></div>{selected.imageUrl && <img className="detail-image" src={selected.imageUrl} alt="" />}<h2>{selected.title}</h2><p className="muted">{selected.author} · {date(selected.createdAt)}</p><p className="body">{selected.content}</p><button className="like" onClick={() => likePost(selected)}>♡ 공감 {selected.likes}</button></article></section>}
+    {view === 'detail' && selected && <section className="content detail"><button className="back" onClick={() => setView('home')}>← 목록으로</button><article><div className="row"><span className="badge">{selected.category}</span><span><button onClick={() => write(selected)}>수정</button><button className="danger" onClick={() => deletePost(selected)}>삭제</button></span></div>{selected.imageUrl && <img className="detail-image" src={selected.imageUrl} alt="" />}<h2>{selected.title}</h2><p className="muted">{selected.author} · {date(selected.createdAt)}</p><p className="body">{selected.content}</p><button className="like" onClick={() => likePost(selected)}>♡ 공감 {selected.likes}</button></article><Comments postId={selected.id} user={user} notice={notice} /></section>}
     {view === 'editor' && <Editor post={editing} cancel={() => setView(editing ? 'detail' : 'home')} save={savePost} />}
     {message && <div className="toast">{message}</div>}
   </main>;
+}
+function Comments({ postId, user, notice }) {
+  const [comments, setComments] = useState([]);
+  const [content, setContent] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const isSample = String(postId).startsWith('sample-');
+
+  const loadComments = async () => {
+    if (isSample) { setComments([]); setLoading(false); return; }
+    try { setComments(await api.comments(postId)); }
+    catch (e) { notice(e.message); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { setLoading(true); loadComments(); }, [postId]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const value = content.trim();
+    if (!value || submitting) return;
+    if (isSample) { notice('샘플 게시글에는 댓글을 작성할 수 없습니다.'); return; }
+    try {
+      setSubmitting(true);
+      await api.createComment(postId, { content: value, userId: user.id });
+      setContent('');
+      await loadComments();
+      notice('댓글을 등록했어요.');
+    } catch (e) { notice(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const saveEdit = async (commentId) => {
+    const value = editingContent.trim();
+    if (!value) return;
+    try {
+      await api.updateComment(commentId, value);
+      setEditingId(null);
+      await loadComments();
+      notice('댓글을 수정했어요.');
+    } catch (e) { notice(e.message); }
+  };
+
+  const remove = async (commentId) => {
+    if (!confirm('이 댓글을 삭제할까요?')) return;
+    try {
+      await api.removeComment(commentId);
+      await loadComments();
+      notice('댓글을 삭제했어요.');
+    } catch (e) { notice(e.message); }
+  };
+
+  return <section className="comments"><div className="comments-heading"><h3>댓글</h3><span>{comments.length}</span></div><form className="comment-form" onSubmit={submit}><textarea value={content} onChange={e => setContent(e.target.value)} maxLength="500" required placeholder="댓글을 입력해 주세요" /><div><span>{content.length}/500</span><button className="primary" disabled={submitting}>{submitting ? '등록 중...' : '댓글 등록'}</button></div></form>{loading ? <p className="comment-state">댓글을 불러오는 중...</p> : comments.length === 0 ? <p className="comment-state">첫 번째 댓글을 남겨 보세요.</p> : <div className="comment-list">{comments.map(comment => <article className="comment" key={comment.id}><div className="comment-meta"><strong>{comment.nickname || '알 수 없음'}</strong><span>{date(comment.createdAt)}</span>{Number(comment.userId) === Number(user.id) && <span className="comment-actions"><button onClick={() => { setEditingId(comment.id); setEditingContent(comment.content); }}>수정</button><button className="danger" onClick={() => remove(comment.id)}>삭제</button></span>}</div>{editingId === comment.id ? <div className="comment-edit"><textarea value={editingContent} onChange={e => setEditingContent(e.target.value)} maxLength="500" /><div><button onClick={() => setEditingId(null)}>취소</button><button className="primary" onClick={() => saveEdit(comment.id)}>저장</button></div></div> : <p>{comment.content}</p>}</article>)}</div>}</section>;
 }
 function Editor({ post, cancel, save }) {
   const [form, setForm] = useState({ title: post?.title || '', content: post?.content || '', category: post?.category || '자유', image: null, previewUrl: post?.imageUrl || '', isAnonymous: post?.isAnonymous || post?.author === '익명' });
