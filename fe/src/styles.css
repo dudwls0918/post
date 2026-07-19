@@ -480,6 +480,23 @@ textarea {
 .login-card .primary {
   width: 100%;
 }
+.text-button {
+  width: 100%;
+  padding: 10px;
+  color: #277278;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.signup-success {
+  margin: 20px 0 0;
+  padding: 12px;
+  color: #235f65;
+  background: #edf6f3;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
 .hint {
   color: #829087;
   font-size: 12px;
