@@ -19,23 +19,9 @@ async function request(path, options = {}) {
   if (!res.ok) throw new Error(`요청 처리에 실패했습니다. (HTTP ${res.status})`);
   return res.status === 204 ? null : res.json();
 }
-async function requestForm(path, options = {}) {
-  const res = await fetch(API + path, options);
-  if (!res.ok) throw new Error(`요청 처리에 실패했습니다. (HTTP ${res.status})`);
-  return res.status === 204 ? null : res.json();
-}
-const postFormData = (data) => {
-  const formData = new FormData();
-  formData.append('title', data.title);
-  formData.append('content', data.content);
-  formData.append('category', data.category);
-  formData.append('author', data.author);
-  formData.append('isAnonymous', String(data.isAnonymous));
-  if (data.image) formData.append('image', data.image);
-  return formData;
-};
 const normalizePost = (post) => ({
   ...post,
+  author: post.nickname || post.author || '알 수 없음',
   category: post.category || '자유',
   imageUrl: post.imageUrl || '',
   isAnonymous: post.isAnonymous || post.author === '익명',
@@ -44,8 +30,14 @@ const normalizePost = (post) => ({
 const api = {
   login: (id) => Promise.resolve({ user: { id, name: id || 'guest' } }),
   posts: () => request('/api/posts').then((posts) => posts.map(normalizePost)),
-  create: (data) => requestForm('/api/posts', { method: 'POST', body: postFormData(data) }),
-  update: (id, data) => requestForm('/api/posts/' + id, { method: 'PUT', body: postFormData(data) }),
+  create: (data) => request('/api/posts', {
+    method: 'POST',
+    body: JSON.stringify({ title: data.title, content: data.content, userId: data.userId }),
+  }),
+  update: (id, data) => request('/api/posts/' + id, {
+    method: 'PUT',
+    body: JSON.stringify({ title: data.title, content: data.content }),
+  }),
   remove: (id) => request('/api/posts/' + id, { method: 'DELETE' }),
 };
 const categories = ['전체', '공지', '질문', '자유'];
@@ -65,9 +57,9 @@ function App() {
   useEffect(() => { if (user) load(); }, [user]);
   const boardPosts = posts.length ? posts : samplePosts;
   const visible = useMemo(() => boardPosts.filter(p => (category === '전체' || p.category === category) && (p.title + p.content).toLowerCase().includes(query.toLowerCase())), [boardPosts, query, category]);
-  const login = async (id, password) => { try { const result = await api.login(id, password); const loginUser = result.user || result; setUser({ id: loginUser.id || id, name: loginUser.name || loginUser.username || id }); } catch (e) { notice(e.message); } };
+  const login = async (id, password) => { try { const userId = Number(id); if (!Number.isInteger(userId) || userId <= 0) throw new Error('현재는 백엔드 회원의 숫자 ID로 로그인해 주세요.'); const result = await api.login(userId, password); const loginUser = result.user || result; setUser({ id: userId, name: loginUser.name || loginUser.username || id }); } catch (e) { notice(e.message); } };
   const write = (post = null) => { setEditing(post); setView('editor'); };
-  const savePost = async (form) => { try { const author = form.isAnonymous ? '익명' : user.name; editing ? await api.update(editing.id, { ...form, author }) : await api.create({ ...form, author }); await load(); setView('home'); notice(editing ? '게시글을 수정했어요.' : '새 게시글을 등록했어요.'); } catch (e) { notice(e.message); } };
+  const savePost = async (form) => { try { editing ? await api.update(editing.id, form) : await api.create({ ...form, userId: user.id }); await load(); setView('home'); notice(editing ? '게시글을 수정했어요.' : '새 게시글을 등록했어요.'); } catch (e) { notice(e.message); } };
   const deletePost = async (post) => { if (String(post.id).startsWith('sample-')) { setView('home'); return; } if (!confirm('이 게시글을 삭제할까요?')) return; try { await api.remove(post.id); await load(); setView('home'); notice('게시글을 삭제했어요.'); } catch(e) { notice(e.message); } };
   const likePost = async () => {};
   if (!user) return <Login onLogin={login} error={message} />;
